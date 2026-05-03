@@ -13,10 +13,9 @@ body.awf-extensions .extension_text_block .extension_name{white-space:normal;wor
 body.awf-extensions .extension_block{display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden}
 body.awf-worldbook .world_entry_form textarea.text_pole{field-sizing:content;min-height:1lh}
 body.awf-popup textarea.popup-input.text_pole{field-sizing:content!important;min-height:1.5em!important;max-height:300px!important;overflow-y:auto!important}
-body.awf-regexwrap .regex-script-container{width:85%!important;margin-right:60px!important}
-body.awf-regexwrap .regex-script-label .regex_script_name{white-space:normal!important;word-break:break-word!important}
-body.awf-regexwrap .regex-script-label{align-items:center!important;min-height:28px}
-body.awf-regexwrap .regex-script-label .regex_script_name.overflow-hidden{overflow:visible!important;text-overflow:clip!important}
+body.awf-regexwrap .regex-script-container{width:85%;margin-right:60px}
+body.awf-regexwrap .regex_script_name{white-space:normal;line-height:1.4}
+body.awf-regexwrap .regex-script-label{align-items:center}
 body.awf-assistant-script div[data-type="script"]>.flex:last-child{gap:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title]{margin:0!important;padding:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title] i{margin:0!important;padding:0!important}
@@ -176,9 +175,7 @@ function applyRegexPadding(s) {
   }
   const px = parseInt(s.regexPaddingRight, 10) || 0;
   _regexStyleEl.textContent = (s.regexwrap && px > 0)
-    ? `body.awf-regexwrap #saved_regex_scripts.regex-script-container,
-       body.awf-regexwrap #saved_preset_scripts.regex-script-container,
-       body.awf-regexwrap #saved_scoped_scripts.regex-script-container{padding-right:${px}px!important}`
+    ? `body.awf-regexwrap #saved_regex_scripts{padding-right:${px}px}`
     : '';
 }
 
