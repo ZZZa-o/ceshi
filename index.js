@@ -13,9 +13,6 @@ body.awf-extensions .extension_text_block .extension_name{white-space:normal;wor
 body.awf-extensions .extension_block{display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden}
 body.awf-worldbook .world_entry_form textarea.text_pole{field-sizing:content;min-height:1lh}
 body.awf-popup textarea.popup-input.text_pole{field-sizing:content!important;min-height:1.5em!important;max-height:300px!important;overflow-y:auto!important}
-body.awf-regexwrap .regex-script-container{width:85%;margin-right:60px}
-body.awf-regexwrap .regex_script_name{white-space:normal;line-height:1.4}
-body.awf-regexwrap .regex-script-label{align-items:center}
 body.awf-assistant-script div[data-type="script"]>.flex:last-child{gap:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title]{margin:0!important;padding:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title] i{margin:0!important;padding:0!important}
@@ -50,7 +47,6 @@ const CLASS_MAP = {
   extensions:      'awf-extensions',
   worldbook:       'awf-worldbook',
   popup:           'awf-popup',
-  regexwrap:       'awf-regexwrap',
   assistantScript: 'awf-assistant-script',
 };
 
@@ -168,15 +164,25 @@ function stopQrObserver() {
 
 let _regexStyleEl = null;
 function applyRegexPadding(s) {
-  if (!_regexStyleEl) {
-    _regexStyleEl = document.createElement('style');
-    _regexStyleEl.id = 'awf-regex-padding-style';
-    document.head.appendChild(_regexStyleEl);
+  if (s.regexwrap) {
+    if (!_regexStyleEl) {
+      _regexStyleEl = document.createElement('style');
+      _regexStyleEl.id = 'awf-regex-style';
+      document.head.appendChild(_regexStyleEl);
+    }
+    const px = parseInt(s.regexPaddingRight, 10) || 0;
+    const padRule = px > 0
+      ? `#saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px;}`
+      : '';
+    _regexStyleEl.textContent = `
+      .regex-script-container{width:85%;margin-right:60px;}
+      .regex_script_name{white-space:normal;line-height:1.4;}
+      .regex-script-label{align-items:center;}
+      ${padRule}
+    `;
+  } else {
+    if (_regexStyleEl) { _regexStyleEl.remove(); _regexStyleEl = null; }
   }
-  const px = parseInt(s.regexPaddingRight, 10) || 0;
-  _regexStyleEl.textContent = (s.regexwrap && px > 0)
-    ? `body.awf-regexwrap #saved_regex_scripts{padding-right:${px}px}`
-    : '';
 }
 
 let _xiaobaixStyleEl = null;
