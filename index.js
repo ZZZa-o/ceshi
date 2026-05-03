@@ -365,28 +365,13 @@ function escHtml(str) {
 function isolatePasteAndInput(el) {
   if (!el || el.dataset.awfPasteIsolated) return;
   el.dataset.awfPasteIsolated = '1';
-  const stop = e => { e.stopPropagation(); };
-  el.addEventListener('paste', e => {
-    e.stopPropagation();
-    const cd = e.clipboardData || window.clipboardData;
-    if (!cd) return;
-    const text = cd.getData('text/plain') ?? cd.getData('text') ?? '';
-    if (text === '') return;
-    e.preventDefault();
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const before = el.value.slice(0, start);
-    const after = el.value.slice(end);
-    el.value = before + text + after;
-    const caret = start + text.length;
-    try { el.setSelectionRange(caret, caret); } catch (_) {}
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, true);
-  el.addEventListener('copy', stop, true);
-  el.addEventListener('cut', stop, true);
-  el.addEventListener('drop', stop, true);
-  el.addEventListener('keydown', e => { e.stopPropagation(); }, true);
-  el.addEventListener('keyup', e => { e.stopPropagation(); }, true);
+  const stopOnly = e => { e.stopPropagation(); };
+  el.addEventListener('paste', stopOnly, true);
+  el.addEventListener('copy', stopOnly, true);
+  el.addEventListener('cut', stopOnly, true);
+  el.addEventListener('drop', stopOnly, true);
+  el.addEventListener('keydown', stopOnly, true);
+  el.addEventListener('keyup', stopOnly, true);
 }
 
 function buildPanel() {
