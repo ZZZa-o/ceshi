@@ -68,7 +68,6 @@ function getSettings() {
   return s;
 }
 
-/* ---------- 通用工具：debounce / rAF 合并 ---------- */
 function debounce(fn, wait = 120) {
   let t;
   return function (...args) {
@@ -85,7 +84,6 @@ function rafThrottle(fn) {
   };
 }
 
-/* ---------- 各模块样式 ---------- */
 let _promptsStyleEl = null;
 function applyPromptsStyle(s) {
   if (!_promptsStyleEl) {
@@ -126,7 +124,6 @@ function applyQrStyle(s) {
 }
 
 function convertLabelsToTextarea(root = document) {
-  // 只在指定范围内查找，避免全树扫描
   const list = root.querySelectorAll
     ? root.querySelectorAll('.qr--set-itemLabel.text_pole')
     : [];
@@ -166,7 +163,6 @@ function revertLabelTextareas() {
   });
 }
 
-/* QR 观察器：只在 QR 容器出现后监听它本身，而不是整个 body */
 let _qrObserver = null;
 const _qrScanDebounced = debounce(() => {
   if (!getSettings().qr) return;
@@ -175,7 +171,6 @@ const _qrScanDebounced = debounce(() => {
 function startQrObserver() {
   if (_qrObserver) return;
   _qrObserver = new MutationObserver(muts => {
-    // 只有新增节点中包含 label input 时才扫描
     for (const m of muts) {
       for (const n of m.addedNodes) {
         if (n.nodeType !== 1) continue;
@@ -203,9 +198,9 @@ function applyRegexPadding(s) {
     }
     const px = Math.max(0, parseInt(s.regexPaddingRight, 10) || 0);
     _regexStyleEl.textContent = `
-      .regex-script-container{width:85%;margin-right:60px;}
+      .regex-script-container{width:85%;margin-right:${px}px!important;}
       .regex_script_name{white-space:normal;line-height:1.4;}
-      .regex-script-label{align-items:center;}
+      .regex-script-label{align-items:center;margin-right:0!important;}
       #saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px!important;}
     `;
   } else {
@@ -232,7 +227,6 @@ function applyXiaobaixStyle(s) {
   }
 }
 
-/* 所有样式统一入口，rAF 合并，避免同一帧内重复刷新 */
 const applySettings = rafThrottle(function applySettingsImmediate() {
   const s = getSettings();
   for (const [key, cls] of Object.entries(CLASS_MAP)) {
@@ -244,10 +238,9 @@ const applySettings = rafThrottle(function applySettingsImmediate() {
   applyXiaobaixStyle(s);
 });
 
-/* ---------- 正文词汇替换 ---------- */
-const _originalHtml = new WeakMap();      // WeakMap：节点被销毁时自动回收
-const _processedNodes = new WeakSet();    // 已替换过的节点，避免重复处理
-let _compiledRegex = null;                // 合并所有词为一个正则，一次扫描
+const _originalHtml = new WeakMap();
+const _processedNodes = new WeakSet();
+let _compiledRegex = null;
 
 function compileTerms(s) {
   const terms = (s.wordReplaceFind || '')
@@ -270,7 +263,6 @@ function replaceInNode(node, replaceWith) {
   } else if (node.nodeType === Node.ELEMENT_NODE) {
     const tag = node.tagName;
     if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT') return;
-    // 使用 TreeWalker 比递归快
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
       acceptNode: n => {
         const p = n.parentNode;
@@ -296,7 +288,7 @@ function replaceInNode(node, replaceWith) {
 
 function processMesText(el, replaceWith) {
   if (!_originalHtml.has(el)) _originalHtml.set(el, el.innerHTML);
-  else el.innerHTML = _originalHtml.get(el); // 每次基于原文重算
+  else el.innerHTML = _originalHtml.get(el);
   replaceInNode(el, replaceWith);
   _processedNodes.add(el);
 }
@@ -332,7 +324,6 @@ function startReplaceObserver() {
     const s = getSettings();
     if (!s.wordReplace || !_compiledRegex) return;
     const replaceWith = s.wordReplaceWith || '';
-    // 批量收集，去重
     const targets = new Set();
     for (const m of mutations) {
       for (const node of m.addedNodes) {
@@ -346,7 +337,6 @@ function startReplaceObserver() {
       targets.forEach(el => processMesText(el, replaceWith));
     });
   });
-  // 只监听 #chat，不监听整个 body
   _replaceObserver.observe(chat, { childList: true, subtree: true });
 }
 function stopReplaceObserver() {
@@ -501,7 +491,8 @@ function buildPanel() {
   });
 
   $('#awf-regexpadding').on('input change', debounce(function () {
-    const val = parseInt(this.value, 10);
+    const raw = this.value.trim();
+    const val = raw === '' ? 0 : parseInt(raw, 10);
     if (!isNaN(val) && val >= 0) {
       getSettings().regexPaddingRight = val;
       applySettings();
