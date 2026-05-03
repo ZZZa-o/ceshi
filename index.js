@@ -198,10 +198,10 @@ function applyRegexPadding(s) {
     }
     const px = Math.max(0, parseInt(s.regexPaddingRight, 10) || 0);
     _regexStyleEl.textContent = `
-      .regex-script-container{width:85%;margin-right:${px}px!important;}
+      .regex-script-container{width:calc(100% - ${px}px)!important;margin-right:0!important;}
       .regex_script_name{white-space:normal;line-height:1.4;}
       .regex-script-label{align-items:center;margin-right:0!important;}
-      #saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px!important;}
+      #saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:0!important;}
     `;
   } else {
     if (_regexStyleEl) { _regexStyleEl.remove(); _regexStyleEl = null; }
