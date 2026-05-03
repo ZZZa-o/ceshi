@@ -59,7 +59,6 @@ function getSettings() {
   for (const [k, v] of Object.entries(DEFAULTS)) {
     if (s[k] === undefined || s[k] === null) s[k] = v;
   }
-
   if (s.qrlabelWidth !== undefined) delete s.qrlabelWidth;
   if (s.qrlabel !== undefined || s.qrset !== undefined) {
     if (s.qr === undefined) s.qr = !!(s.qrlabel ?? true);
@@ -69,6 +68,24 @@ function getSettings() {
   return s;
 }
 
+/* ---------- 通用工具：debounce / rAF 合并 ---------- */
+function debounce(fn, wait = 120) {
+  let t;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+function rafThrottle(fn) {
+  let scheduled = false;
+  return function (...args) {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => { scheduled = false; fn.apply(this, args); });
+  };
+}
+
+/* ---------- 各模块样式 ---------- */
 let _promptsStyleEl = null;
 function applyPromptsStyle(s) {
   if (!_promptsStyleEl) {
@@ -76,16 +93,12 @@ function applyPromptsStyle(s) {
     _promptsStyleEl.id = 'awf-prompts-style';
     document.head.appendChild(_promptsStyleEl);
   }
-  if (s.prompts) {
-    _promptsStyleEl.textContent = `
-      #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name{white-space:normal;word-break:break-word;overflow-wrap:break-word;overflow:visible;text-overflow:unset;min-width:0;display:flex;flex-wrap:nowrap;align-items:center;gap:.3em}
-      #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name>span[class*="fa-"]{flex:0 0 auto;align-self:center;line-height:1.4}
-      #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name a.prompt-manager-inspect-action{flex:1 1 0;min-width:0;white-space:normal;word-break:break-word;overflow-wrap:break-word;display:block;text-overflow:unset;overflow:visible;line-height:1.4}
-      #completion_prompt_manager_list .completion_prompt_manager_prompt{height:auto;min-height:unset;align-items:center}
-    `;
-  } else {
-    _promptsStyleEl.textContent = '';
-  }
+  _promptsStyleEl.textContent = s.prompts ? `
+    #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name{white-space:normal;word-break:break-word;overflow-wrap:break-word;overflow:visible;text-overflow:unset;min-width:0;display:flex;flex-wrap:nowrap;align-items:center;gap:.3em}
+    #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name>span[class*="fa-"]{flex:0 0 auto;align-self:center;line-height:1.4}
+    #completion_prompt_manager_list .completion_prompt_manager_prompt .completion_prompt_manager_prompt_name a.prompt-manager-inspect-action{flex:1 1 0;min-width:0;white-space:normal;word-break:break-word;overflow-wrap:break-word;display:block;text-overflow:unset;overflow:visible;line-height:1.4}
+    #completion_prompt_manager_list .completion_prompt_manager_prompt{height:auto;min-height:unset;align-items:center}
+  ` : '';
 }
 
 let _qrStyleEl = null;
@@ -112,9 +125,13 @@ function applyQrStyle(s) {
   }
 }
 
-function convertLabelsToTextarea() {
-  document.querySelectorAll('.qr--set-itemLabel.text_pole').forEach(input => {
-    if (input.dataset.awfConverted) return;
+function convertLabelsToTextarea(root = document) {
+  // 只在指定范围内查找，避免全树扫描
+  const list = root.querySelectorAll
+    ? root.querySelectorAll('.qr--set-itemLabel.text_pole')
+    : [];
+  for (const input of list) {
+    if (input.dataset.awfConverted) continue;
     input.dataset.awfConverted = '1';
     const ta = document.createElement('textarea');
     ta.className = 'awf-qrlabel-ta text_pole';
@@ -135,7 +152,7 @@ function convertLabelsToTextarea() {
     ta.addEventListener('blur', () => {
       if (ta.value !== input.value) ta.value = input.value;
     });
-  });
+  }
 }
 
 function revertLabelTextareas() {
@@ -149,19 +166,31 @@ function revertLabelTextareas() {
   });
 }
 
-let _qrObserver = null, _qrObserverTimer = null;
+/* QR 观察器：只在 QR 容器出现后监听它本身，而不是整个 body */
+let _qrObserver = null;
+const _qrScanDebounced = debounce(() => {
+  if (!getSettings().qr) return;
+  convertLabelsToTextarea(document);
+}, 80);
 function startQrObserver() {
   if (_qrObserver) return;
-  _qrObserver = new MutationObserver(() => {
-    if (!getSettings().qr) return;
-    clearTimeout(_qrObserverTimer);
-    _qrObserverTimer = setTimeout(convertLabelsToTextarea, 50);
+  _qrObserver = new MutationObserver(muts => {
+    // 只有新增节点中包含 label input 时才扫描
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.matches?.('.qr--set-itemLabel.text_pole') ||
+            n.querySelector?.('.qr--set-itemLabel.text_pole')) {
+          _qrScanDebounced();
+          return;
+        }
+      }
+    }
   });
   _qrObserver.observe(document.body, { childList: true, subtree: true });
 }
 function stopQrObserver() {
   if (_qrObserver) { _qrObserver.disconnect(); _qrObserver = null; }
-  clearTimeout(_qrObserverTimer);
 }
 
 let _regexStyleEl = null;
@@ -172,16 +201,12 @@ function applyRegexPadding(s) {
       _regexStyleEl.id = 'awf-regex-style';
       document.head.appendChild(_regexStyleEl);
     }
-    const px = parseInt(s.regexPaddingRight, 10) || 0;
-    const padRule = px > 0
-      ? `#saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px!important;}
-         #saved_regex_scripts>.regex-script-label,#saved_preset_scripts>.regex-script-label,#saved_scoped_scripts>.regex-script-label{margin-right:${px}px!important;}`
-      : '';
+    const px = Math.max(0, parseInt(s.regexPaddingRight, 10) || 0);
     _regexStyleEl.textContent = `
       .regex-script-container{width:85%;margin-right:60px;}
       .regex_script_name{white-space:normal;line-height:1.4;}
       .regex-script-label{align-items:center;}
-      ${padRule}
+      #saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px!important;}
     `;
   } else {
     if (_regexStyleEl) { _regexStyleEl.remove(); _regexStyleEl = null; }
@@ -207,7 +232,8 @@ function applyXiaobaixStyle(s) {
   }
 }
 
-function applySettings() {
+/* 所有样式统一入口，rAF 合并，避免同一帧内重复刷新 */
+const applySettings = rafThrottle(function applySettingsImmediate() {
   const s = getSettings();
   for (const [key, cls] of Object.entries(CLASS_MAP)) {
     document.body.classList.toggle(cls, !!s[key]);
@@ -216,48 +242,87 @@ function applySettings() {
   applyQrStyle(s);
   applyRegexPadding(s);
   applyXiaobaixStyle(s);
+});
+
+/* ---------- 正文词汇替换 ---------- */
+const _originalHtml = new WeakMap();      // WeakMap：节点被销毁时自动回收
+const _processedNodes = new WeakSet();    // 已替换过的节点，避免重复处理
+let _compiledRegex = null;                // 合并所有词为一个正则，一次扫描
+
+function compileTerms(s) {
+  const terms = (s.wordReplaceFind || '')
+    .split(/[，,]/).map(t => t.trim()).filter(Boolean);
+  if (!terms.length) { _compiledRegex = null; return false; }
+  const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  _compiledRegex = new RegExp(escaped.join('|'), 'g');
+  return true;
 }
 
-const _originalHtml = new Map();
-function saveOriginals() {
-  document.querySelectorAll('#chat .mes_text').forEach(el => {
-    if (!_originalHtml.has(el)) _originalHtml.set(el, el.innerHTML);
-  });
-}
-function restoreOriginals() {
-  _originalHtml.forEach((html, el) => { if (document.contains(el)) el.innerHTML = html; });
-  _originalHtml.clear();
-}
-function replaceInNode(node, findTerms, replaceWith) {
-  if (!findTerms.length) return;
+function replaceInNode(node, replaceWith) {
+  if (!_compiledRegex) return;
   if (node.nodeType === Node.TEXT_NODE) {
-    let text = node.textContent, changed = false;
-    for (const term of findTerms) {
-      if (!term) continue;
-      const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      if (re.test(text)) { text = text.replace(re, replaceWith); changed = true; }
+    const text = node.textContent;
+    _compiledRegex.lastIndex = 0;
+    if (_compiledRegex.test(text)) {
+      _compiledRegex.lastIndex = 0;
+      node.textContent = text.replace(_compiledRegex, replaceWith);
     }
-    if (changed) node.textContent = text;
   } else if (node.nodeType === Node.ELEMENT_NODE) {
-    if (['script','style','textarea','input'].includes(node.tagName.toLowerCase())) return;
-    for (const child of Array.from(node.childNodes)) replaceInNode(child, findTerms, replaceWith);
+    const tag = node.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT') return;
+    // 使用 TreeWalker 比递归快
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => {
+        const p = n.parentNode;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        const t = p.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEXTAREA' || t === 'INPUT') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    let n;
+    while ((n = walker.nextNode())) {
+      const text = n.textContent;
+      _compiledRegex.lastIndex = 0;
+      if (_compiledRegex.test(text)) {
+        _compiledRegex.lastIndex = 0;
+        n.textContent = text.replace(_compiledRegex, replaceWith);
+      }
+    }
   }
 }
-function getActiveTerms(s) {
-  return (s.wordReplaceFind || '').split(/[，,]/).map(t => t.trim()).filter(Boolean);
+
+function processMesText(el, replaceWith) {
+  if (!_originalHtml.has(el)) _originalHtml.set(el, el.innerHTML);
+  else el.innerHTML = _originalHtml.get(el); // 每次基于原文重算
+  replaceInNode(el, replaceWith);
+  _processedNodes.add(el);
 }
+
+function restoreOriginals() {
+  document.querySelectorAll('#chat .mes_text').forEach(el => {
+    if (_originalHtml.has(el)) el.innerHTML = _originalHtml.get(el);
+  });
+}
+
 function applyReplaceToAll() {
   const s = getSettings();
-  const terms = getActiveTerms(s);
+  const ok = compileTerms(s);
   const replaceWith = s.wordReplaceWith || '';
-  saveOriginals();
-  document.querySelectorAll('#chat .mes_text').forEach(el => {
-    const orig = _originalHtml.get(el);
-    if (orig !== undefined) el.innerHTML = orig;
-  });
-  if (!terms.length) return;
-  document.querySelectorAll('#chat .mes_text').forEach(el => replaceInNode(el, terms, replaceWith));
+  const nodes = document.querySelectorAll('#chat .mes_text');
+  if (!ok) {
+    nodes.forEach(el => {
+      if (_originalHtml.has(el)) el.innerHTML = _originalHtml.get(el);
+    });
+    return;
+  }
+  nodes.forEach(el => processMesText(el, replaceWith));
 }
+
+const applyReplaceDebounced = debounce(applyReplaceToAll, 200);
+
 let _replaceObserver = null;
 function startReplaceObserver() {
   if (_replaceObserver) return;
@@ -265,21 +330,23 @@ function startReplaceObserver() {
   if (!chat) return;
   _replaceObserver = new MutationObserver(mutations => {
     const s = getSettings();
-    if (!s.wordReplace) return;
-    const terms = getActiveTerms(s);
-    if (!terms.length) return;
+    if (!s.wordReplace || !_compiledRegex) return;
     const replaceWith = s.wordReplaceWith || '';
-    mutations.forEach(m => {
-      m.addedNodes.forEach(node => {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        const targets = node.classList?.contains('mes_text') ? [node] : Array.from(node.querySelectorAll('.mes_text'));
-        targets.forEach(el => {
-          if (!_originalHtml.has(el)) _originalHtml.set(el, el.innerHTML);
-          replaceInNode(el, terms, replaceWith);
-        });
-      });
+    // 批量收集，去重
+    const targets = new Set();
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.classList?.contains('mes_text')) targets.add(node);
+        else node.querySelectorAll?.('.mes_text').forEach(el => targets.add(el));
+      }
+    }
+    if (!targets.size) return;
+    requestAnimationFrame(() => {
+      targets.forEach(el => processMesText(el, replaceWith));
     });
   });
+  // 只监听 #chat，不监听整个 body
   _replaceObserver.observe(chat, { childList: true, subtree: true });
 }
 function stopReplaceObserver() {
@@ -287,8 +354,15 @@ function stopReplaceObserver() {
 }
 function syncReplaceObserver() {
   const s = getSettings();
-  if (s.wordReplace) { startReplaceObserver(); applyReplaceToAll(); }
-  else { stopReplaceObserver(); restoreOriginals(); }
+  if (s.wordReplace) {
+    compileTerms(s);
+    startReplaceObserver();
+    applyReplaceToAll();
+  } else {
+    stopReplaceObserver();
+    _compiledRegex = null;
+    restoreOriginals();
+  }
 }
 
 function escHtml(str) {
@@ -409,14 +483,14 @@ function buildPanel() {
     saveSettingsDebounced();
   });
 
-  $('#awf-qrwidth').on('input change', function () {
+  $('#awf-qrwidth').on('input change', debounce(function () {
     const val = parseInt(this.value, 10);
     if (!isNaN(val) && val >= 0) {
       getSettings().qrLabelWidth = val;
       applySettings();
       saveSettingsDebounced();
     }
-  });
+  }, 100));
 
   $('#awf-regexwrap').on('change', function () {
     const s = getSettings();
@@ -426,14 +500,14 @@ function buildPanel() {
     saveSettingsDebounced();
   });
 
-  $('#awf-regexpadding').on('input change', function () {
+  $('#awf-regexpadding').on('input change', debounce(function () {
     const val = parseInt(this.value, 10);
     if (!isNaN(val) && val >= 0) {
       getSettings().regexPaddingRight = val;
       applySettings();
       saveSettingsDebounced();
     }
-  });
+  }, 100));
 
   $('#awf-assistant-script').on('change', function () {
     getSettings().assistantScript = !!this.checked;
@@ -449,11 +523,11 @@ function buildPanel() {
     saveSettingsDebounced();
   });
 
-  $('#awf-xiaobaixiconchar').on('input', function () {
+  $('#awf-xiaobaixiconchar').on('input', debounce(function () {
     getSettings().xiaobaixIconChar = this.value || '❀';
     applySettings();
     saveSettingsDebounced();
-  });
+  }, 150));
 
   $('#awf-wordreplace').on('change', function () {
     const s = getSettings();
@@ -463,21 +537,22 @@ function buildPanel() {
     saveSettingsDebounced();
   });
 
-  function onReplaceInput() {
+  function onReplaceInputImmediate() {
     const s = getSettings();
-    const terms = getActiveTerms(s);
+    compileTerms(s);
+    const terms = (s.wordReplaceFind || '').split(/[，,]/).map(t => t.trim()).filter(Boolean);
     $('#awf-replace-status').text(terms.length ? `已配置 ${terms.length} 个查找词` : '');
-    applyReplaceToAll();
+    applyReplaceDebounced();
     saveSettingsDebounced();
   }
 
   $('#awf-replace-find').on('input', function () {
     getSettings().wordReplaceFind = this.value;
-    onReplaceInput();
+    onReplaceInputImmediate();
   });
   $('#awf-replace-with').on('input', function () {
     getSettings().wordReplaceWith = this.value;
-    onReplaceInput();
+    onReplaceInputImmediate();
   });
 }
 
