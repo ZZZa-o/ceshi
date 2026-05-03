@@ -23,6 +23,7 @@ body.awf-assistant-script div[data-type="script"]>.ml-0\\.5.w-0.grow{width:auto!
 .awf-replace-section textarea.awf-ta,.awf-replace-section input.awf-input{width:100%;box-sizing:border-box;padding:4px 6px;border-radius:4px;resize:vertical;font-size:.9em;min-height:36px}
 .awf-replace-section textarea.awf-ta{min-height:54px}
 .awf-replace-status{font-size:.8em;opacity:.7;margin-top:2px;min-height:1em}
+.awf-replace-opts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
   `;
   document.head.appendChild(el);
 })();
@@ -42,6 +43,7 @@ const DEFAULTS = {
   wordReplace: false,
   wordReplaceFind: '',
   wordReplaceWith: '',
+  wordReplaceCaseSensitive: false,
 };
 
 const CLASS_MAP = {
@@ -247,7 +249,8 @@ function compileTerms(s) {
     .split(/[，,]/).map(t => t.trim()).filter(Boolean);
   if (!terms.length) { _compiledRegex = null; return false; }
   const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  _compiledRegex = new RegExp(escaped.join('|'), 'g');
+  const flags = s.wordReplaceCaseSensitive ? 'g' : 'gi';
+  _compiledRegex = new RegExp(escaped.join('|'), flags);
   return true;
 }
 
@@ -359,6 +362,33 @@ function escHtml(str) {
   return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function isolatePasteAndInput(el) {
+  if (!el || el.dataset.awfPasteIsolated) return;
+  el.dataset.awfPasteIsolated = '1';
+  const stop = e => { e.stopPropagation(); };
+  el.addEventListener('paste', e => {
+    e.stopPropagation();
+    const cd = e.clipboardData || window.clipboardData;
+    if (!cd) return;
+    const text = cd.getData('text/plain') ?? cd.getData('text') ?? '';
+    if (text === '') return;
+    e.preventDefault();
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    el.value = before + text + after;
+    const caret = start + text.length;
+    try { el.setSelectionRange(caret, caret); } catch (_) {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, true);
+  el.addEventListener('copy', stop, true);
+  el.addEventListener('cut', stop, true);
+  el.addEventListener('drop', stop, true);
+  el.addEventListener('keydown', e => { e.stopPropagation(); }, true);
+  el.addEventListener('keyup', e => { e.stopPropagation(); }, true);
+}
+
 function buildPanel() {
   const s = getSettings();
   const html = `
@@ -440,6 +470,12 @@ function buildPanel() {
             <div class="awf-replace-row">
               <label class="awf-row-label" for="awf-replace-with">替换为（留空则删除匹配词）</label>
               <input id="awf-replace-with" class="awf-input text_pole" type="text" placeholder="替换内容" value="${escHtml(s.wordReplaceWith)}">
+            </div>
+            <div class="awf-replace-opts">
+              <label class="checkbox_label" for="awf-replace-case" style="margin:0;">
+                <input type="checkbox" id="awf-replace-case" ${s.wordReplaceCaseSensitive ? 'checked' : ''}>
+                <span>区分英文大小写</span>
+              </label>
             </div>
             <div class="awf-replace-status" id="awf-replace-status"></div>
           </div>
@@ -537,12 +573,21 @@ function buildPanel() {
     saveSettingsDebounced();
   }
 
+  const findEl = document.getElementById('awf-replace-find');
+  const withEl = document.getElementById('awf-replace-with');
+  isolatePasteAndInput(findEl);
+  isolatePasteAndInput(withEl);
+
   $('#awf-replace-find').on('input', function () {
     getSettings().wordReplaceFind = this.value;
     onReplaceInputImmediate();
   });
   $('#awf-replace-with').on('input', function () {
     getSettings().wordReplaceWith = this.value;
+    onReplaceInputImmediate();
+  });
+  $('#awf-replace-case').on('change', function () {
+    getSettings().wordReplaceCaseSensitive = !!this.checked;
     onReplaceInputImmediate();
   });
 }
