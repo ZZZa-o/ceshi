@@ -1,0 +1,11 @@
+{
+  "display_name": "条目自适应高度",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "author": "ss",
+  "version": "1.1.0",
+  "homePage": "",
+  "auto_update": true
+}
