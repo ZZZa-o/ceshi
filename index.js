@@ -13,8 +13,9 @@ body.awf-extensions .extension_text_block .extension_name{white-space:normal;wor
 body.awf-extensions .extension_block{display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden}
 body.awf-worldbook .world_entry_form textarea.text_pole{field-sizing:content;min-height:1lh}
 body.awf-popup textarea.popup-input.text_pole{field-sizing:content!important;min-height:1.5em!important;max-height:300px!important;overflow-y:auto!important}
-body.awf-regexwrap .regex_script_name{white-space:normal;line-height:1.4;word-break:break-word;overflow-wrap:break-word}
-body.awf-regexwrap .regex-script-label{align-items:flex-start}
+body.awf-regexwrap .regex-script-container{width:85%;margin-right:60px}
+body.awf-regexwrap .regex_script_name{white-space:normal;line-height:1.4}
+body.awf-regexwrap .regex-script-label{align-items:center}
 body.awf-assistant-script div[data-type="script"]>.flex:last-child{gap:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title]{margin:0!important;padding:1px!important}
 body.awf-assistant-script div[data-type="script"] .menu_button[title] i{margin:0!important;padding:0!important}
@@ -30,15 +31,15 @@ body.awf-assistant-script div[data-type="script"]>.ml-0\\.5.w-0.grow{width:auto!
 })();
 
 const DEFAULTS = {
-  extensions: true,
-  prompts: true,
-  worldbook: true,
-  popup: true,
-  qr: true,
-  regexwrap: true,
+  extensions: false,
+  prompts: false,
+  worldbook: false,
+  popup: false,
+  qr: false,
+  regexwrap: false,
   regexPaddingRight: 20,
-  assistantScript: true,
-  xiaobaixIcon: true,
+  assistantScript: false,
+  xiaobaixIcon: false,
   xiaobaixIconChar: '❀',
   wordReplace: false,
   wordReplaceFind: '',
@@ -315,30 +316,35 @@ function buildPanel() {
             <input type="checkbox" id="awf-qr" ${s.qr ? 'checked' : ''}>
             <span>快速回复换行显示</span>
           </label>
-          <label class="checkbox_label" for="awf-regexwrap">
-            <input type="checkbox" id="awf-regexwrap" ${s.regexwrap ? 'checked' : ''}>
-            <span>正则脚本名称换行显示</span>
-          </label>
-          <div id="awf-regexpadding-row" style="display:${s.regexwrap ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:6px;margin-left:4px;">
-            <label for="awf-regexpadding" style="font-size:.88em;white-space:nowrap;">右侧留白 px：</label>
-            <input type="number" id="awf-regexpadding" min="0" max="300" step="1"
-              value="${s.regexPaddingRight}"
-              style="width:70px;padding:2px 4px;border-radius:4px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <label class="checkbox_label" for="awf-regexwrap" style="margin:0;">
+              <input type="checkbox" id="awf-regexwrap" ${s.regexwrap ? 'checked' : ''}>
+              <span>正则脚本名称换行显示</span>
+            </label>
+            <div id="awf-regexpadding-row" style="display:${s.regexwrap ? 'flex' : 'none'};align-items:center;gap:4px;">
+              <label for="awf-regexpadding" style="font-size:.82em;opacity:.8;white-space:nowrap;">右侧留白：</label>
+              <input type="number" id="awf-regexpadding" min="0" max="300" step="1"
+                value="${s.regexPaddingRight}"
+                style="width:48px;padding:1px 4px;border-radius:4px;font-size:.85em;height:20px;box-sizing:border-box;">
+              <span style="font-size:.82em;opacity:.8;">px</span>
+            </div>
           </div>
           <label class="checkbox_label" for="awf-assistant-script">
             <input type="checkbox" id="awf-assistant-script" ${s.assistantScript ? 'checked' : ''}>
             <span>酒馆助手脚本换行显示</span>
           </label>
-          <label class="checkbox_label" for="awf-xiaobaixicon">
-            <input type="checkbox" id="awf-xiaobaixicon" ${s.xiaobaixIcon ? 'checked' : ''}>
-            <span>小白 x 图标替换</span>
-          </label>
-          <div id="awf-xiaobaixicon-row" style="display:${s.xiaobaixIcon ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:6px;margin-left:4px;">
-            <label for="awf-xiaobaixiconchar" style="font-size:.88em;white-space:nowrap;">替换图标：</label>
-            <input type="text" id="awf-xiaobaixiconchar"
-              value="${escHtml(s.xiaobaixIconChar)}"
-              maxlength="4"
-              style="width:60px;padding:2px 4px;border-radius:4px;text-align:center;font-size:1.1em;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <label class="checkbox_label" for="awf-xiaobaixicon" style="margin:0;">
+              <input type="checkbox" id="awf-xiaobaixicon" ${s.xiaobaixIcon ? 'checked' : ''}>
+              <span>小白 x 图标替换</span>
+            </label>
+            <div id="awf-xiaobaixicon-row" style="display:${s.xiaobaixIcon ? 'flex' : 'none'};align-items:center;gap:4px;">
+              <label for="awf-xiaobaixiconchar" style="font-size:.82em;opacity:.8;white-space:nowrap;">替换图标：</label>
+              <input type="text" id="awf-xiaobaixiconchar"
+                value="${escHtml(s.xiaobaixIconChar)}"
+                maxlength="4"
+                style="width:44px;padding:1px 4px;border-radius:4px;text-align:center;font-size:.95em;height:20px;box-sizing:border-box;">
+            </div>
           </div>
           <label class="checkbox_label" for="awf-wordreplace">
             <input type="checkbox" id="awf-wordreplace" ${s.wordReplace ? 'checked' : ''}>
