@@ -33,6 +33,7 @@ const DEFAULTS = {
   worldbook: false,
   popup: false,
   qr: false,
+  qrLabelWidth: 120,
   regexwrap: false,
   regexPaddingRight: 20,
   assistantScript: false,
@@ -95,8 +96,9 @@ function applyQrStyle(s) {
     document.head.appendChild(_qrStyleEl);
   }
   if (s.qr) {
+    const w = parseInt(s.qrLabelWidth, 10) || 120;
     _qrStyleEl.textContent = `
-      .qr--set-itemLabelContainer{flex:0 0 120px!important;width:120px!important;min-width:120px!important;max-width:120px!important;overflow:visible!important;align-self:flex-start!important;display:flex!important;align-items:flex-start!important;box-sizing:border-box!important}
+      .qr--set-itemLabelContainer{flex:0 0 ${w}px!important;width:${w}px!important;min-width:${w}px!important;max-width:${w}px!important;overflow:visible!important;align-self:flex-start!important;display:flex!important;align-items:flex-start!important;box-sizing:border-box!important}
       textarea.awf-qrlabel-ta{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;white-space:pre-wrap!important;word-break:break-word!important;overflow-wrap:break-word!important;resize:none!important;field-sizing:content!important;min-height:28px!important;height:auto!important;line-height:1.4!important;padding:2px 4px!important;font:inherit!important}
       textarea.awf-qrlabel-ta:focus{outline:none!important}
       #qr--global .qr--item,#qr--chat .qr--item,#qr--character .qr--item{display:flex;flex-wrap:wrap;align-items:center;height:auto!important;min-height:unset!important}
@@ -172,7 +174,8 @@ function applyRegexPadding(s) {
     }
     const px = parseInt(s.regexPaddingRight, 10) || 0;
     const padRule = px > 0
-      ? `#saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px;}`
+      ? `#saved_regex_scripts,#saved_preset_scripts,#saved_scoped_scripts{padding-right:${px}px!important;}
+         #saved_regex_scripts>.regex-script-label,#saved_preset_scripts>.regex-script-label,#saved_scoped_scripts>.regex-script-label{margin-right:${px}px!important;}`
       : '';
     _regexStyleEl.textContent = `
       .regex-script-container{width:85%;margin-right:60px;}
@@ -318,10 +321,19 @@ function buildPanel() {
             <input type="checkbox" id="awf-popup" ${s.popup ? 'checked' : ''}>
             <span>弹窗文本框换行显示</span>
           </label>
-          <label class="checkbox_label" for="awf-qr">
-            <input type="checkbox" id="awf-qr" ${s.qr ? 'checked' : ''}>
-            <span>快速回复换行显示</span>
-          </label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <label class="checkbox_label" for="awf-qr" style="margin:0;">
+              <input type="checkbox" id="awf-qr" ${s.qr ? 'checked' : ''}>
+              <span>快速回复换行显示</span>
+            </label>
+            <div id="awf-qrwidth-row" style="display:${s.qr ? 'flex' : 'none'};align-items:center;gap:4px;">
+              <label for="awf-qrwidth" style="font-size:.82em;opacity:.8;white-space:nowrap;">标签宽度：</label>
+              <input type="number" id="awf-qrwidth" min="40" max="600" step="1"
+                value="${s.qrLabelWidth}"
+                style="width:54px;padding:1px 4px;border-radius:4px;font-size:.85em;height:20px;box-sizing:border-box;">
+              <span style="font-size:.82em;opacity:.8;">px</span>
+            </div>
+          </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <label class="checkbox_label" for="awf-regexwrap" style="margin:0;">
               <input type="checkbox" id="awf-regexwrap" ${s.regexwrap ? 'checked' : ''}>
@@ -391,9 +403,19 @@ function buildPanel() {
   $('#awf-qr').on('change', function () {
     const s = getSettings();
     s.qr = !!this.checked;
+    $('#awf-qrwidth-row').toggle(s.qr);
     if (s.qr) startQrObserver(); else stopQrObserver();
     applySettings();
     saveSettingsDebounced();
+  });
+
+  $('#awf-qrwidth').on('input change', function () {
+    const val = parseInt(this.value, 10);
+    if (!isNaN(val) && val >= 0) {
+      getSettings().qrLabelWidth = val;
+      applySettings();
+      saveSettingsDebounced();
+    }
   });
 
   $('#awf-regexwrap').on('change', function () {
