@@ -524,7 +524,7 @@ function buildPanel() {
               <input type="text" id="${UI.xbChar}"
                 value="${escHtml(s.xiaobaixIconChar)}"
                 maxlength="4"
-                style="width:44px;padding:1px 4px;border-radius:4px;text-align:center;font-size:.95em;height:20px;box-sizing:border-box;">
+                style="width:44px;padding:1px 4px;border-radius:4px;font-size:.85em;height:20px;box-sizing:border-box;text-align:center;">
             </div>
           </div>
           <label class="checkbox_label" for="${UI.wrChk}">
