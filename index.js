@@ -45,6 +45,7 @@ const UI = {
   wrFind:   '_' + _rnd(),
   wrWith:   '_' + _rnd(),
   wrCase:   '_' + _rnd(),
+  wrMask:   '_' + _rnd(),
   wrStat:   '_' + _rnd(),
   sec:      '_' + _rnd(),
   row:      '_' + _rnd(),
@@ -99,6 +100,7 @@ const DEFAULTS = {
   wordReplaceFind: '',
   wordReplaceWith: '',
   wordReplaceCaseSensitive: false,
+  wordReplaceMask: false,
 };
 
 function getSettings() {
@@ -275,8 +277,74 @@ function compileTerms(s) {
   return true;
 }
 
-function replaceInNode(node, replaceWith) {
+const MASK_CLS = '_awf_mask_';
+
+function _ensureMaskStyle() {
+  if (document.getElementById(MASK_CLS + 'style')) return;
+  const s = document.createElement('style');
+  s.id = MASK_CLS + 'style';
+  s.textContent = '.' + MASK_CLS + '{' +
+    'background:var(--SmartThemeQuoteColor,rgba(128,128,128,0.25));' +
+    'color:transparent;' +
+    'filter:blur(4px);' +
+    'border-radius:3px;' +
+    'padding:0 2px;' +
+    'user-select:none;' +
+    'cursor:default;' +
+    'transition:filter .2s,color .2s;' +
+  '}' +
+  '.' + MASK_CLS + ':hover{' +
+    'filter:blur(0);' +
+    'color:inherit;' +
+  '}';
+  document.head.appendChild(s);
+}
+
+function _wrapMatchesInSpan(textNode) {
+  const text = textNode.textContent;
+  _compiledRegex.lastIndex = 0;
+  if (!_compiledRegex.test(text)) return;
+  _compiledRegex.lastIndex = 0;
+  const frag = document.createDocumentFragment();
+  let last = 0, m;
+  while ((m = _compiledRegex.exec(text)) !== null) {
+    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const span = document.createElement('span');
+    span.className = MASK_CLS;
+    span.textContent = m[0];
+    frag.appendChild(span);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  textNode.parentNode.replaceChild(frag, textNode);
+}
+
+function replaceInNode(node, replaceWith, maskMode) {
   if (!_compiledRegex) return;
+  if (maskMode) {
+    _ensureMaskStyle();
+    if (node.nodeType === Node.TEXT_NODE) {
+      _wrapMatchesInSpan(node);
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const tag = node.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT') return;
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, {
+        acceptNode: n => {
+          const p = n.parentNode;
+          if (!p) return NodeFilter.FILTER_REJECT;
+          const t = p.tagName;
+          if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEXTAREA' || t === 'INPUT') return NodeFilter.FILTER_REJECT;
+          if (p.classList && p.classList.contains(MASK_CLS)) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const nodes = [];
+      let n;
+      while ((n = walker.nextNode())) nodes.push(n);
+      nodes.forEach(_wrapMatchesInSpan);
+    }
+    return;
+  }
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
     _compiledRegex.lastIndex = 0;
@@ -308,10 +376,10 @@ function replaceInNode(node, replaceWith) {
   }
 }
 
-function processMesText(el, replaceWith) {
+function processMesText(el, replaceWith, maskMode) {
   if (!_originalHtml.has(el)) _originalHtml.set(el, el.innerHTML);
   else el.innerHTML = _originalHtml.get(el);
-  replaceInNode(el, replaceWith);
+  replaceInNode(el, replaceWith, maskMode);
 }
 
 function restoreOriginals() {
@@ -323,13 +391,14 @@ function restoreOriginals() {
 function applyReplaceToAll() {
   const s = getSettings();
   const ok = compileTerms(s);
+  const maskMode = !!s.wordReplaceMask;
   const replaceWith = s.wordReplaceWith || '';
   const nodes = document.querySelectorAll(SEL.chatMesText);
   if (!ok) {
     nodes.forEach(el => { if (_originalHtml.has(el)) el.innerHTML = _originalHtml.get(el); });
     return;
   }
-  nodes.forEach(el => processMesText(el, replaceWith));
+  nodes.forEach(el => processMesText(el, replaceWith, maskMode));
 }
 
 const applyReplaceDebounced = debounce(applyReplaceToAll, 200);
@@ -342,6 +411,7 @@ function startReplaceObserver() {
   _replaceObserver = new MutationObserver(mutations => {
     const s = getSettings();
     if (!s.wordReplace || !_compiledRegex) return;
+    const maskMode = !!s.wordReplaceMask;
     const replaceWith = s.wordReplaceWith || '';
     const targets = new Set();
     for (const m of mutations) {
@@ -352,7 +422,7 @@ function startReplaceObserver() {
       }
     }
     if (!targets.size) return;
-    requestAnimationFrame(() => { targets.forEach(el => processMesText(el, replaceWith)); });
+    requestAnimationFrame(() => { targets.forEach(el => processMesText(el, replaceWith, maskMode)); });
   });
   _replaceObserver.observe(chat, { childList: true, subtree: true });
 }
@@ -466,14 +536,18 @@ function buildPanel() {
               <label class="${UI.rowLbl}" for="${UI.wrFind}">查找词（可填多个，用 <b>，</b> 隔开）</label>
               <textarea id="${UI.wrFind}" class="${UI.ta} text_pole" rows="2" placeholder="词语1，词语2，词语3">${escHtml(s.wordReplaceFind)}</textarea>
             </div>
-            <div class="${UI.row}">
+            <div class="${UI.row}" id="${UI.wrMask}_row" style="display:${s.wordReplaceMask ? 'none' : ''};">
               <label class="${UI.rowLbl}" for="${UI.wrWith}">替换为（留空则删除匹配词）</label>
-              <input id="${UI.wrWith}" class="${UI.input} text_pole" type="text" placeholder="替换内容" value="${escHtml(s.wordReplaceWith)}">
+              <input id="${UI.wrWith}" class="${UI.input} text_pole" type="text" placeholder="替换内容" value="${escHtml(s.wordReplaceWith)}" ${s.wordReplaceMask ? 'disabled' : ''}>
             </div>
             <div class="${UI.opts}">
               <label class="checkbox_label" for="${UI.wrCase}" style="margin:0;">
                 <input type="checkbox" id="${UI.wrCase}" ${s.wordReplaceCaseSensitive ? 'checked' : ''}>
                 <span>区分英文大小写</span>
+              </label>
+              <label class="checkbox_label" for="${UI.wrMask}" style="margin:0;">
+                <input type="checkbox" id="${UI.wrMask}" ${s.wordReplaceMask ? 'checked' : ''}>
+                <span>打码模式</span>
               </label>
             </div>
             <div class="${UI.wrStat}" id="${UI.wrStat}"></div>
@@ -575,6 +649,16 @@ function buildPanel() {
   $(document.getElementById(UI.wrCase)).on('change', function () {
     getSettings().wordReplaceCaseSensitive = !!this.checked;
     onReplaceInputImmediate();
+  });
+  $(document.getElementById(UI.wrMask)).on('change', function () {
+    const s = getSettings();
+    s.wordReplaceMask = !!this.checked;
+    const withRow = document.getElementById(UI.wrMask + '_row');
+    const withInput = document.getElementById(UI.wrWith);
+    if (withRow) withRow.style.display = s.wordReplaceMask ? 'none' : '';
+    if (withInput) withInput.disabled = s.wordReplaceMask;
+    onReplaceInputImmediate();
+    saveSettingsDebounced();
   });
 }
 
