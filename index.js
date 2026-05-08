@@ -286,8 +286,8 @@ function _ensureMaskStyle() {
   s.textContent = '.' + MASK_CLS + '{' +
     'background:var(--SmartThemeQuoteColor,rgba(128,128,128,0.25));' +
     'color:transparent;' +
-    'filter:blur(4px);' +
-    'border-radius:3px;' +
+    'filter:blur(2px);' +
+    'border-radius:2px;' +
     'padding:0 2px;' +
     'user-select:none;' +
     'cursor:default;' +
