@@ -552,7 +552,7 @@ function buildPanel() {
             </div>
             <div class="${UI.wrStat}" id="${UI.wrStat}"></div>
           </div>
-          <small style="opacity:.7;display:block;margin-top:8px;">修改后即时生效，无需刷新。</small>
+          <small style="opacity:.7;display:block;margin-top:8px;">插件免费。</small>
         </div>
       </div>
     </div>
