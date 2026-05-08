@@ -521,10 +521,10 @@ function buildPanel() {
             </label>
             <div id="${UI.xbRow}" style="display:${s.xiaobaixIcon ? 'flex' : 'none'};align-items:center;gap:4px;">
               <label for="${UI.xbChar}" style="font-size:.82em;opacity:.8;white-space:nowrap;">替换图标：</label>
-              <input type="text" id="${UI.xbChar}"
-                value="${escHtml(s.xiaobaixIconChar)}"
-                maxlength="4"
-                style="width:44px;padding:1px 4px;border-radius:4px;font-size:.85em;height:20px;box-sizing:border-box;text-align:center;">
+              <input type="text" id="${UI.xbChar}" class="text_pole"
+              value="${escHtml(s.xiaobaixIconChar)}"
+              maxlength="4"
+              style="width:44px;padding:1px 4px;border-radius:4px;font-size:.85em;height:20px;box-sizing:border-box;text-align:center;">
             </div>
           </div>
           <label class="checkbox_label" for="${UI.wrChk}">
