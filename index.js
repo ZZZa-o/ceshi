@@ -534,7 +534,7 @@ function buildPanel() {
           <div id="${UI.wrPanel}" class="${UI.sec}" style="display:${s.wordReplace ? 'block' : 'none'};">
             <div class="${UI.row}">
               <label class="${UI.rowLbl}" for="${UI.wrFind}">查找词（可填多个，用 <b>，</b> 隔开）</label>
-              <textarea id="${UI.wrFind}" class="${UI.ta} text_pole" rows="1" style="overflow:hidden;resize:none;" placeholder="词语1，词语2，词语3">${escHtml(s.wordReplaceFind)}</textarea>
+              <textarea id="${UI.wrFind}" class="${UI.ta} text_pole" rows="2" placeholder="词语1，词语2，词语3">${escHtml(s.wordReplaceFind)}</textarea>
             </div>
             <div class="${UI.row}" id="${UI.wrMask}_row" style="display:${s.wordReplaceMask ? 'none' : ''};">
               <label class="${UI.rowLbl}" for="${UI.wrWith}">替换为（留空则删除匹配词）</label>
@@ -620,7 +620,6 @@ function buildPanel() {
     const s = getSettings();
     s.wordReplace = !!this.checked;
     $('#' + UI.wrPanel).toggle(s.wordReplace);
-    if (s.wordReplace) autoResize(findEl);
     syncReplaceObserver();
     saveSettingsDebounced();
   });
@@ -639,35 +638,28 @@ function buildPanel() {
   isolatePasteAndInput(findEl);
   isolatePasteAndInput(withEl);
 
-function autoResize(el) {
-  el.style.minHeight = '0';
-  el.style.height = 'auto';
-  el.style.height = el.scrollHeight + 'px';
-};
-
-$(findEl).on('input', function () {
-  getSettings().wordReplaceFind = this.value;
-  autoResize(this);
-  onReplaceInputImmediate();
-});
-$(withEl).on('input', function () {
-  getSettings().wordReplaceWith = this.value;
-  onReplaceInputImmediate();
-});
-$(document.getElementById(UI.wrCase)).on('change', function () {
-  getSettings().wordReplaceCaseSensitive = !!this.checked;
-  onReplaceInputImmediate();
-});
-$(document.getElementById(UI.wrMask)).on('change', function () {
-  const s = getSettings();
-  s.wordReplaceMask = !!this.checked;
-  const withRow = document.getElementById(UI.wrMask + '_row');
-  const withInput = document.getElementById(UI.wrWith);
-  if (withRow) withRow.style.display = s.wordReplaceMask ? 'none' : '';
-  if (withInput) withInput.disabled = s.wordReplaceMask;
-  onReplaceInputImmediate();
-  saveSettingsDebounced();
-});
+  $(findEl).on('input', function () {
+    getSettings().wordReplaceFind = this.value;
+    onReplaceInputImmediate();
+  });
+  $(withEl).on('input', function () {
+    getSettings().wordReplaceWith = this.value;
+    onReplaceInputImmediate();
+  });
+  $(document.getElementById(UI.wrCase)).on('change', function () {
+    getSettings().wordReplaceCaseSensitive = !!this.checked;
+    onReplaceInputImmediate();
+  });
+  $(document.getElementById(UI.wrMask)).on('change', function () {
+    const s = getSettings();
+    s.wordReplaceMask = !!this.checked;
+    const withRow = document.getElementById(UI.wrMask + '_row');
+    const withInput = document.getElementById(UI.wrWith);
+    if (withRow) withRow.style.display = s.wordReplaceMask ? 'none' : '';
+    if (withInput) withInput.disabled = s.wordReplaceMask;
+    onReplaceInputImmediate();
+    saveSettingsDebounced();
+  });
 }
 
 jQuery(async () => {
