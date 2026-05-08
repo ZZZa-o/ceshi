@@ -284,11 +284,11 @@ function _ensureMaskStyle() {
   const s = document.createElement('style');
   s.id = MASK_CLS + 'style';
   s.textContent = '.' + MASK_CLS + '{' +
-    'background:var(--SmartThemeQuoteColor,rgba(128,128,128,0.25));' +
+    'background:color-mix(in srgb, var(--SmartThemeQuoteColor) 25%, transparent);' +
     'color:transparent;' +
-    'filter:blur(4px);' +
+    'filter:blur(2.5px);' +
     'border-radius:3px;' +
-    'padding:0 2px;' +
+    'padding:0 1px;' +
     'user-select:none;' +
     'cursor:default;' +
     'transition:filter .2s,color .2s;' +
