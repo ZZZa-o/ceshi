@@ -620,6 +620,7 @@ function buildPanel() {
     const s = getSettings();
     s.wordReplace = !!this.checked;
     $('#' + UI.wrPanel).toggle(s.wordReplace);
+    if (s.wordReplace) autoResize(findEl);
     syncReplaceObserver();
     saveSettingsDebounced();
   });
@@ -639,10 +640,10 @@ function buildPanel() {
   isolatePasteAndInput(withEl);
 
 function autoResize(el) {
+  el.style.minHeight = '0';
   el.style.height = 'auto';
   el.style.height = el.scrollHeight + 'px';
-}
-autoResize(findEl);
+};
 
 $(findEl).on('input', function () {
   getSettings().wordReplaceFind = this.value;
