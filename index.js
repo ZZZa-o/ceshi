@@ -442,6 +442,12 @@ function syncReplaceObserver() {
   }
 }
 
+function _injectReplaceFix() {
+  const s = _ensureStyle();
+  s.textContent +=
+    `#${UI.wrFind}{min-height:28px!important;max-height:none!important;height:auto!important;overflow-y:visible!important;field-sizing:content!important}#${UI.wrFind}:disabled{field-sizing:content!important}`;
+}
+
 function escHtml(str) {
   return (str || '').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
 }
